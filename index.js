@@ -6,7 +6,7 @@ const database = require('./db')
 const boletosRoutes = require('./rest_api/boletosAPI')
 const lotesRoutes = require('./rest_api/lotesAPI')
 const app = express()
-const port = process.env.SERVER_PORT || 8001;
+const port = process.env.SERVER_PORT || 3000;
 
 // Opções de configuração do Swagger
 const options = {
