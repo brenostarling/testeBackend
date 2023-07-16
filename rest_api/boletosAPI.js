@@ -188,15 +188,15 @@ router.post('/uploadpdf', upload.single('file'), async (req, res) => {
         const zipFileName = 'boletos.zip';
 
         // Envia o arquivo ZIP como resposta para download
+        res.attachment(zipFileName);
+        res.setHeader('Content-Type', 'application/zip');
         res.download(tmpFilePath, zipFileName, (err) => {
             if (err) {
                 console.error('Erro ao enviar o arquivo ZIP:', err);
                 res.status(500).json({ error: 'Erro ao enviar o arquivo ZIP' });
             }
-
-            // Deleta o arquivo temporário
-            fs.unlinkSync(tmpFilePath);
         });
+
 
         // Deleta o arquivo temporário, se existir
         if (fs.existsSync(req.file.path)) {
