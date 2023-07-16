@@ -22,7 +22,7 @@ const options = {
 const specs = swaggerJsdoc(options)
 
 // Middlewares e rotas da API
-app.use('', swaggerUi.serve, swaggerUi.setup(specs))
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs))
 app.use(express.json())
 app.use('/boletos', boletosRoutes)
 app.use('/lotes', lotesRoutes)
