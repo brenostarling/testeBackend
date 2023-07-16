@@ -126,10 +126,10 @@ router.post('/import', upload.single('file'), async (req, res) => {
  */
 router.post('/uploadpdf', upload.single('file'), async (req, res) => {
     try {
-        const pdfBuffer = fs.readFileSync(req.file.path)
-        const pdfData = await PDFParser(pdfBuffer)
-        const names = pdfData.text.split('\n').filter((name) => name.trim() !== '')
-        const boletos = await Boleto.findAll({ where: { nome_sacado: { [Sequelize.Op.in]: names } } })
+        const pdfBuffer = fs.readFileSync(req.file.path);
+        const pdfData = await PDFParser(pdfBuffer);
+        const names = pdfData.text.split('\n').filter((name) => name.trim() !== '');
+        const boletos = await Boleto.findAll({ where: { nome_sacado: { [Sequelize.Op.in]: names } } });
 
         const mappedBoletos = boletos.map((boleto) => ({
             id: boleto.id,
@@ -137,67 +137,78 @@ router.post('/uploadpdf', upload.single('file'), async (req, res) => {
             id_lote: boleto.id_lote,
             valor: boleto.valor,
             linha_digitavel: boleto.linha_digitavel,
-        }))
+        }));
 
         // Cria o diretório para os PDFs
-        const outputDir = 'pdfs/'
-        fs.mkdirSync(outputDir, { recursive: true })
-        const zip = new JSZip()
+        const outputDir = 'pdfs/';
+        fs.mkdirSync(outputDir, { recursive: true });
+        const zip = new JSZip();
 
         // Gera os PDFs e adiciona ao arquivo ZIP
         for (let i = 0; i < mappedBoletos.length; i++) {
-            const boleto = mappedBoletos[i]
-            const pdfPath = `${outputDir}${boleto.id}.pdf`
+            const boleto = mappedBoletos[i];
+            const pdfPath = `${outputDir}${boleto.id}.pdf`;
 
             // Cria o PDF com os dados do boleto
-            const pdfDoc = await PDFDocument.create()
-            const page = pdfDoc.addPage()
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage();
 
-            const x = 50
-            let y = page.getHeight() - 50
-            const lineHeight = 20
-            page.drawText(`Nome Sacado: ${boleto.nome_sacado}`, { x, y })
-            y -= lineHeight
-            page.drawText(`Valor: ${boleto.valor}`, { x, y })
-            y -= lineHeight
-            page.drawText(`Linha Digitável: ${boleto.linha_digitavel}`, { x, y })
-            const pdfBytes = await pdfDoc.save()
+            const x = 50;
+            let y = page.getHeight() - 50;
+            const lineHeight = 20;
+            page.drawText(`Nome Sacado: ${boleto.nome_sacado}`, { x, y });
+            y -= lineHeight;
+            page.drawText(`Valor: ${boleto.valor}`, { x, y });
+            y -= lineHeight;
+            page.drawText(`Linha Digitável: ${boleto.linha_digitavel}`, { x, y });
+            const pdfBytes = await pdfDoc.save();
+
+            // Salva o PDF no diretório
+            fs.writeFileSync(pdfPath, pdfBytes);
 
             // Adiciona o PDF ao arquivo ZIP
-            zip.file(`${boleto.id}.pdf`, pdfBytes)
+            zip.file(`${boleto.id}.pdf`, fs.readFileSync(pdfPath));
+
+            // Deleta o PDF temporário
+            fs.unlinkSync(pdfPath);
         }
 
-        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
+        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+
+        // Cria o diretório temporário, se não existir
+        if (!fs.existsSync('./tmp')) {
+            fs.mkdirSync('./tmp');
+        }
+
+        const tmpFilePath = './tmp/boletos.zip';
+
+        // Salva o arquivo ZIP em um local temporário
+        fs.writeFileSync(tmpFilePath, zipBuffer);
+
+        const zipFileName = 'boletos.zip';
 
         // Envia o arquivo ZIP como resposta para download
-        const zipFileName = 'boletos.zip'
-        res.setHeader('Content-Disposition', `attachment filename=${zipFileName}`)
-        res.setHeader('Content-Type', 'application/zip')
-        res.send(zipBuffer)
+        res.download(tmpFilePath, zipFileName, (err) => {
+            if (err) {
+                console.error('Erro ao enviar o arquivo ZIP:', err);
+                res.status(500).json({ error: 'Erro ao enviar o arquivo ZIP' });
+            }
+
+            // Deleta o arquivo temporário
+            fs.unlinkSync(tmpFilePath);
+        });
 
         // Deleta o arquivo temporário, se existir
         if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path)
+            fs.unlinkSync(req.file.path);
         } else {
-            console.error('Arquivo temporário não encontrado:', req.file.path)
-        }
-
-        // Deleta os PDFs temporários, se existirem
-        for (let i = 0; i < mappedBoletos.length; i++) {
-            const boleto = mappedBoletos[i]
-            const pdfPath = `${outputDir}${boleto.id}.pdf`
-
-            if (fs.existsSync(pdfPath)) {
-                fs.unlinkSync(pdfPath)
-            } else {
-                console.error('PDF temporário não encontrado:', pdfPath)
-            }
+            console.error('Arquivo temporário não encontrado:', req.file.path);
         }
     } catch (error) {
-        console.error('Erro ao processar os PDFs:', error)
-        res.status(500).json({ error: 'Erro ao processar os PDFs' })
+        console.error('Erro ao processar os PDFs:', error);
+        res.status(500).json({ error: 'Erro ao processar os PDFs' });
     }
-})
+});
 
 /**
  * @swagger
